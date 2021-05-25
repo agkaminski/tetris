@@ -71,13 +71,41 @@ static int eatFullLines(tetris_t *tetris)
 
 static void removeTetromino(tetris_t *tetris)
 {
+	int i, j;
+	
+	for (i = 0; i < 4; ++i)
+		for (j = 0; j < 4; ++j)
+			if (tetris->curr.matrix[j][i])
+				tetris->field[j + tetris->curr.y][i + tetris->curr.x] = 0;
+}
 
+
+static int _addTetromino(tetris_t *tetris, int dry)
+{
+	int i, j;
+	
+	for (i = 0; i < 4; ++i) {
+		for (j = 0; j < 4; ++j) {
+			if (tetris->curr.matrix[j][i]) {
+				if (tetris->field[j + tetris->curr.y][i + tetris->curr.x])
+					return -1;
+				
+				if (!dry)
+					tetris->field[j + tetris->curr.y][i + tetris->curr.x] = 1;
+			}
+		}
+	}
+	
+	return 0;
 }
 
 
 static int addTetromino(tetris_t *tetris)
 {
-
+	if (_addTetromino(tetris, 1))
+		return -1;
+	
+	return _addTetromino(tetris, 0);
 }
 
 
@@ -152,11 +180,14 @@ static int move(tetris_t *tetris, int xdir, int ydir)
 
 static int rotate(tetris_t *tetris)
 {
+	int i, j;
 	tetromino_t old = tetris->curr;
 
 	removeTetromino(tetris);
 
-	/* rotate */
+	for (i = 0; i < 4; ++i)
+		for (j = 0; j < 4; ++j)
+			tetris->curr.matrix[j][i] = old.matrix[i][j];
 
 	if (addTetromino(tetris)) {
 		tetris->curr = old;
@@ -171,7 +202,42 @@ static int rotate(tetris_t *tetris)
 
 static void draw(tetris_t *tetris)
 {
+	int i, j;
 
+	/* clear the term */
+	printf("\033[H");
+
+	/* top border */
+	for (i = 0; i < FIELD_XSZ + 4; ++i)
+		printf("-");
+	printf("\n");
+
+	/* margin */
+	printf("|");
+	for (i = 0; i < FIELD_XSZ + 2; ++i)
+		printf(" ");
+	printf("|\n");
+
+	/* game field */
+	for (j = 0; j < FIELD_YSZ; ++j) {
+		printf("| ");
+	
+		for (i = 0; i < FIELD_XSZ; ++i)
+			printf("%c", tetris->field[j][i] ? 'o' : ' ');
+
+		printf(" |\n");
+	}
+
+	/* margin */
+	printf("|");
+	for (i = 0; i < FIELD_XSZ + 2; ++i)
+		printf(" ");
+	printf("|\n");
+
+	/* bottom border */
+	for (i = 0; i < FIELD_XSZ + 4; ++i)
+		printf("-");
+	printf("\n");
 }
 
 
@@ -220,8 +286,11 @@ int main(int argc, char *argv[])
 	newGame(&tetris);
 	spawnTetromino(&tetris);
 	printf("Get ready!\n");
+	
+	sleep(1);
 
 	do {
+		draw(&tetris);
 		usleep(TIME_STEP);
 
 		switch (key = getKey()) {
